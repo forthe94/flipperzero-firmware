@@ -1,4 +1,5 @@
 #include "subghz_cli.h"
+#include "helpers/spectrum_analyzer_worker.h"
 
 #include <furi.h>
 #include <furi-hal.h>
@@ -10,6 +11,7 @@
 #include <lib/subghz/protocols/subghz_protocol_common.h>
 #include <lib/subghz/protocols/subghz_protocol_princeton.h>
 #include <lib/subghz/subghz_tx_rx_worker.h>
+
 
 #define SUBGHZ_FREQUENCY_RANGE_STR \
     "299999755...348000000 or 386999938...464000000 or 778999847...928000000"
@@ -481,6 +483,62 @@ static void subghz_cli_command(Cli* cli, string_t args, void* context) {
     string_clear(cmd);
 }
 
+void cli_command_spectrum_analyzer(Cli* cli, string_t args, void* context) {
+	uint32_t frequency_start;
+	uint32_t bandwidth;
+    if(string_size(args)) {
+        int ret = sscanf(
+        		string_get_cstr(args), "%lu %lu", &frequency_start,
+				&bandwidth);
+        printf("Start %lu, bw bits %lu\n", frequency_start, bandwidth);
+        if(ret != 2) {
+            cli_print_usage("spectrum_analyzer", "<Frequency_start bandwidth from list 812 650 541 464 406 325 270 232 203 162 135 116 102 81 68 58>", string_get_cstr(args));
+            return;
+        }
+        if(!furi_hal_subghz_is_frequency_valid(frequency_start)) {
+            printf(
+                "Frequency must be in " SUBGHZ_FREQUENCY_RANGE_STR " range, not %lu\r\n",
+				frequency_start);
+            return;
+        }
+    }
+    else
+    {
+        cli_print_usage("spectrum_analyzer", "<Frequency_start bandwidth from list 812 650 541 464 406 325 270 232 203 162 135 116 102 81 68 58>", string_get_cstr(args));
+        return;
+    }
+    printf("Starting worker\r\n");
+    SpectrumAnalyzerWorker* worker = spectrum_analyzer_worker_alloc();
+
+    worker->start_freq = frequency_start;
+    worker->bandwidth = bandwidth;
+    spectrum_analyzer_worker_start(worker);
+    printf("Worker started\n");
+    while(!cli_cmd_interrupt_received(cli)) {
+        osDelay(100);
+        uint8_t rssi_ind = 0;
+
+        printf("RSSI vals:\n\r");
+        printf("\033[2J");
+        for(rssi_ind = 0; rssi_ind < DOTS_COUNT; rssi_ind++)
+        {
+        	printf("%.1f ", worker->rssi_buf[rssi_ind].rssi);
+
+            printf("%04d ", (int) worker->rssi_buf[rssi_ind].frequency);
+            for (float lvl = -100; lvl<worker->rssi_buf[rssi_ind].rssi; lvl += 1) {
+                printf("=");
+            }
+            printf("\r\n");
+
+        }
+        printf("\n\r");
+    }
+    printf("Stop worker\n");
+    spectrum_analyzer_worker_stop(worker);
+    spectrum_analyzer_worker_free(worker);
+
+}
+
 void subghz_cli_init() {
     Cli* cli = furi_record_open("cli");
 
@@ -491,6 +549,7 @@ void subghz_cli_init() {
     cli_add_command(cli, "subghz_tx", CliCommandFlagDefault, subghz_cli_command_tx, NULL);
     cli_add_command(cli, "subghz_rx", CliCommandFlagDefault, subghz_cli_command_rx, NULL);
     cli_add_command(cli, "subghz", CliCommandFlagDefault, subghz_cli_command, NULL);
+    cli_add_command(cli, "spectrum_analyzer", CliCommandFlagDefault, cli_command_spectrum_analyzer, NULL);
 
     furi_record_close("cli");
 }

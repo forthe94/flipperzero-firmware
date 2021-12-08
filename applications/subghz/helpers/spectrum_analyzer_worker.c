@@ -4,7 +4,6 @@
  *  Created on: Dec 4, 2021
  *      Author: forthe
  */
-#include "spectrum_analyzer.h"
 #include "spectrum_analyzer_worker.h"
 
 #include <furi.h>
