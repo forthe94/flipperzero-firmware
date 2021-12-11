@@ -144,6 +144,13 @@ SubGhz* subghz_alloc() {
         SubGhzViewFrequencyAnalyzer,
         subghz_frequency_analyzer_get_view(subghz->subghz_frequency_analyzer));
 
+    // Spectrum Analyzer
+    subghz->subghz_spectrum_analyzer = subghz_spectrum_analyzer_alloc();
+    view_dispatcher_add_view(
+        subghz->view_dispatcher,
+        SubGhzViewSpectrumAnalyzer,
+        subghz_spectrum_analyzer_get_view(subghz->subghz_spectrum_analyzer));
+
     // Read RAW
     subghz->subghz_read_raw = subghz_read_raw_alloc();
     view_dispatcher_add_view(
@@ -242,6 +249,10 @@ void subghz_free(SubGhz* subghz) {
     // Frequency Analyzer
     view_dispatcher_remove_view(subghz->view_dispatcher, SubGhzViewFrequencyAnalyzer);
     subghz_frequency_analyzer_free(subghz->subghz_frequency_analyzer);
+
+    // Spectrum Analyzer
+    view_dispatcher_remove_view(subghz->view_dispatcher, SubGhzViewSpectrumAnalyzer);
+    subghz_spectrum_analyzer_free(subghz->subghz_spectrum_analyzer);
 
     // Read RAW
     view_dispatcher_remove_view(subghz->view_dispatcher, SubGhzViewReadRAW);

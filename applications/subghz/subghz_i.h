@@ -4,6 +4,7 @@
 #include "views/subghz_receiver.h"
 #include "views/subghz_transmitter.h"
 #include "views/subghz_frequency_analyzer.h"
+#include "views/subghz_spectrum_analyzer.h"
 #include "views/subghz_read_raw.h"
 
 #include "views/subghz_test_static.h"
@@ -116,6 +117,7 @@ struct SubGhz {
     VariableItemList* variable_item_list;
 
     SubghzFrequencyAnalyzer* subghz_frequency_analyzer;
+    SubghzSpectrumAnalyzer* subghz_spectrum_analyzer;
     SubghzReadRAW* subghz_read_raw;
     SubghzTestStatic* subghz_test_static;
     SubghzTestCarrier* subghz_test_carrier;
@@ -133,6 +135,7 @@ typedef enum {
     SubGhzViewTransmitter,
     SubGhzViewVariableItemList,
     SubGhzViewFrequencyAnalyzer,
+	SubGhzViewSpectrumAnalyzer,
     SubGhzViewReadRAW,
     SubGhzViewStatic,
     SubGhzViewTestCarrier,

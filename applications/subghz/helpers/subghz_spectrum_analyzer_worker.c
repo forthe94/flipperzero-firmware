@@ -4,7 +4,7 @@
  *  Created on: Dec 4, 2021
  *      Author: forthe
  */
-#include "spectrum_analyzer_worker.h"
+#include "subghz_spectrum_analyzer_worker.h"
 
 #include <furi.h>
 #include <cc1101.h>
@@ -17,8 +17,8 @@ float spect_buf[DOTS_COUNT];
 //static uint16_t freq_steps[] = {812, 650, 541, 464, 406, 325, 270, 232, 203, 162, 135, 116, 102, 81, 68, 58};
 static uint16_t freq_steps_good[] = {500, 300, 250, 225, 200, 150, 125, 100, 100, 75, 50, 50, 50, 50, 25, 10};
 
-static int32_t spectrum_analyzer_worker_thread(void* context) {
-	SpectrumAnalyzerWorker* instance = context;
+static int32_t subghz_spectrum_analyzer_worker_thread(void* context) {
+	SubghzSpectrumAnalyzerWorker* instance = context;
 
     uint32_t freq_step = freq_steps_good[instance->bandwidth]*1000;
     // Start CC1011
@@ -83,21 +83,21 @@ static int32_t spectrum_analyzer_worker_thread(void* context) {
     return 0;
 }
 
-SpectrumAnalyzerWorker* spectrum_analyzer_worker_alloc() {
-	SpectrumAnalyzerWorker* instance = furi_alloc(sizeof(SpectrumAnalyzerWorker));
+SubghzSpectrumAnalyzerWorker* subghz_spectrum_analyzer_worker_alloc() {
+	SubghzSpectrumAnalyzerWorker* instance = furi_alloc(sizeof(SubghzSpectrumAnalyzerWorker));
 
     instance->thread = furi_thread_alloc();
-    furi_thread_set_name(instance->thread, "SpectrumAnalyzerWorker");
+    furi_thread_set_name(instance->thread, "SubghzSpectrumAnalyzerWorker");
     furi_thread_set_stack_size(instance->thread, 2048);
     furi_thread_set_context(instance->thread, instance);
-    furi_thread_set_callback(instance->thread, spectrum_analyzer_worker_thread);
+    furi_thread_set_callback(instance->thread, subghz_spectrum_analyzer_worker_thread);
 
 
     return instance;
 }
 
 
-void spectrum_analyzer_worker_free(SpectrumAnalyzerWorker* instance) {
+void subghz_spectrum_analyzer_worker_free(SubghzSpectrumAnalyzerWorker* instance) {
     furi_assert(instance);
 
     furi_thread_free(instance->thread);
@@ -105,7 +105,7 @@ void spectrum_analyzer_worker_free(SpectrumAnalyzerWorker* instance) {
     free(instance);
 }
 
-void spectrum_analyzer_worker_start(SpectrumAnalyzerWorker* instance) {
+void subghz_spectrum_analyzer_worker_start(SubghzSpectrumAnalyzerWorker* instance) {
     furi_assert(instance);
     furi_assert(!instance->worker_running);
 
@@ -114,7 +114,7 @@ void spectrum_analyzer_worker_start(SpectrumAnalyzerWorker* instance) {
     furi_thread_start(instance->thread);
 }
 
-void spectrum_analyzer_worker_stop(SpectrumAnalyzerWorker* instance) {
+void subghz_spectrum_analyzer_worker_stop(SubghzSpectrumAnalyzerWorker* instance) {
     furi_assert(instance);
     furi_assert(instance->worker_running);
 
@@ -123,7 +123,7 @@ void spectrum_analyzer_worker_stop(SpectrumAnalyzerWorker* instance) {
     furi_thread_join(instance->thread);
 }
 
-bool spectrum_analyzer_worker_is_running(SpectrumAnalyzerWorker* instance) {
+bool subghz_spectrum_analyzer_worker_is_running(SubghzSpectrumAnalyzerWorker* instance) {
     furi_assert(instance);
     return instance->worker_running;
 }

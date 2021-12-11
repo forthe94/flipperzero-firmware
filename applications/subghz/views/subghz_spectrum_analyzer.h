@@ -4,7 +4,7 @@
 #include "../helpers/subghz_custom_event.h"
 
 #define DOTS_COUNT (50)
-//typedef struct SubghzFrequencyAnalyzer SubghzFrequencyAnalyzer;
+typedef struct SubghzSpectrumAnalyzer SubghzSpectrumAnalyzer;
 //
 //typedef void (*SubghzFrequencyAnalyzerCallback)(SubghzCustomEvent event, void* context);
 //
@@ -13,8 +13,8 @@
 //    SubghzFrequencyAnalyzerCallback callback,
 //    void* context);
 //
-//SubghzFrequencyAnalyzer* subghz_frequency_analyzer_alloc();
-//
-//void subghz_frequency_analyzer_free(SubghzFrequencyAnalyzer* subghz_static);
-//
-//View* subghz_frequency_analyzer_get_view(SubghzFrequencyAnalyzer* subghz_static);
+SubghzSpectrumAnalyzer* subghz_spectrum_analyzer_alloc();
+
+void subghz_spectrum_analyzer_free(SubghzSpectrumAnalyzer* subghz_static);
+
+View* subghz_spectrum_analyzer_get_view(SubghzSpectrumAnalyzer* subghz_static);
