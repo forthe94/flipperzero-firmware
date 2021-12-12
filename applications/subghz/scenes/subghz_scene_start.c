@@ -6,7 +6,7 @@ enum SubmenuIndex {
     SubmenuIndexTest,
     SubmenuIndexAddManualy,
     SubmenuIndexFrequencyAnalyzer,
-	SubmenuIndexSpecturmAnalyzer,
+	SubmenuIndexSpectrumAnalyzer,
     SubmenuIndexReadRAW,
 };
 
@@ -45,7 +45,7 @@ void subghz_scene_start_on_enter(void* context) {
     submenu_add_item(
         subghz->submenu,
         "Spectrum Analyzer",
-        SubmenuIndexSpecturmAnalyzer,
+        SubmenuIndexSpectrumAnalyzer,
         subghz_scene_start_submenu_callback,
         subghz);
     submenu_add_item(
@@ -86,6 +86,11 @@ bool subghz_scene_start_on_event(void* context, SceneManagerEvent event) {
             scene_manager_set_scene_state(
                 subghz->scene_manager, SubGhzSceneStart, SubmenuIndexFrequencyAnalyzer);
             scene_manager_next_scene(subghz->scene_manager, SubGhzSceneFrequencyAnalyzer);
+            return true;
+        } else if(event.event == SubmenuIndexSpectrumAnalyzer) {
+            scene_manager_set_scene_state(
+                subghz->scene_manager, SubGhzSceneStart, SubmenuIndexSpectrumAnalyzer);
+            scene_manager_next_scene(subghz->scene_manager, SubGhzSceneSpectrumAnalyzer);
             return true;
         } else if(event.event == SubmenuIndexTest) {
             scene_manager_set_scene_state(

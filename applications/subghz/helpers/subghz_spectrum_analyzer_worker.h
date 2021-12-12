@@ -11,27 +11,32 @@
 
 #define DOTS_COUNT (50)
 
+typedef struct SubGhzSpectrumAnalyzerWorker SubGhzSpectrumAnalyzerWorker;
+typedef void (
+    *SubGhzSpectrumAnalyzerWorkerPairCallback)(
+    		void* context,
+    		uint8_t dot_num,
+    		uint32_t frequency,
+    		float rssi,
+    		bool redraw
+    );
+
 typedef struct {
     uint32_t frequency;
     float rssi;
 } FrequencyRSSI;
 
-typedef struct  {
-    FuriThread* thread;
-
-    volatile bool worker_running;
-    FrequencyRSSI rssi_buf[DOTS_COUNT];
-    uint32_t start_freq;
-    uint32_t bandwidth;
-
-    void* context;
-} SubghzSpectrumAnalyzerWorker;
 
 
 
-SubghzSpectrumAnalyzerWorker* subghz_spectrum_analyzer_worker_alloc();
-void subghz_spectrum_analyzer_worker_free(SubghzSpectrumAnalyzerWorker* instance);
-void subghz_spectrum_analyzer_worker_start(SubghzSpectrumAnalyzerWorker* instance);
-void subghz_spectrum_analyzer_worker_stop(SubghzSpectrumAnalyzerWorker* instance);
-bool subghz_spectrum_analyzer_worker_is_running(SubghzSpectrumAnalyzerWorker* instance);
 
+SubGhzSpectrumAnalyzerWorker* subghz_spectrum_analyzer_worker_alloc();
+void subghz_spectrum_analyzer_worker_free(SubGhzSpectrumAnalyzerWorker* instance);
+void subghz_spectrum_analyzer_worker_start(SubGhzSpectrumAnalyzerWorker* instance);
+void subghz_spectrum_analyzer_worker_stop(SubGhzSpectrumAnalyzerWorker* instance);
+bool subghz_spectrum_analyzer_worker_is_running(SubGhzSpectrumAnalyzerWorker* instance);
+void subghz_spectrum_analyzer_worker_set_params(SubGhzSpectrumAnalyzerWorker* instance, uint32_t freq_start, uint32_t freq_step);
+void subghz_spectrum_analyzer_worker_set_pair_callback(
+    SubGhzSpectrumAnalyzerWorker* instance,
+    SubGhzSpectrumAnalyzerWorkerPairCallback callback,
+    void* context);

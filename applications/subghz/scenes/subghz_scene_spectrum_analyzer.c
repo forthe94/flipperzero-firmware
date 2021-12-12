@@ -9,8 +9,8 @@ void subghz_scene_spectrum_analyzer_callback(SubghzCustomEvent event, void* cont
 
 void subghz_scene_spectrum_analyzer_on_enter(void* context) {
     SubGhz* subghz = context;
-//    subghz_spectrum_analyzer_set_callback(
-//        subghz->subghz_spectrum_analyzer, subghz_scene_spectrum_analyzer_callback, subghz);
+    subghz_spectrum_analyzer_set_callback(
+        subghz->subghz_spectrum_analyzer, subghz_scene_spectrum_analyzer_callback, subghz);
     view_dispatcher_switch_to_view(subghz->view_dispatcher, SubGhzViewSpectrumAnalyzer);
 }
 

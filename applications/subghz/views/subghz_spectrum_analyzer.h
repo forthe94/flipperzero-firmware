@@ -5,14 +5,14 @@
 
 #define DOTS_COUNT (50)
 typedef struct SubghzSpectrumAnalyzer SubghzSpectrumAnalyzer;
-//
-//typedef void (*SubghzFrequencyAnalyzerCallback)(SubghzCustomEvent event, void* context);
-//
-//void subghz_frequency_analyzer_set_callback(
-//    SubghzFrequencyAnalyzer* subghz_frequency_analyzer,
-//    SubghzFrequencyAnalyzerCallback callback,
-//    void* context);
-//
+
+typedef void (*SubghzSpectrumAnalyzerCallback)(SubghzCustomEvent event, void* context);
+
+void subghz_spectrum_analyzer_set_callback(
+    SubghzSpectrumAnalyzer* subghz_spectrum_analyzer,
+    SubghzSpectrumAnalyzerCallback callback,
+    void* context);
+
 SubghzSpectrumAnalyzer* subghz_spectrum_analyzer_alloc();
 
 void subghz_spectrum_analyzer_free(SubghzSpectrumAnalyzer* subghz_static);

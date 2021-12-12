@@ -13,34 +13,80 @@
 
 struct SubghzSpectrumAnalyzer {
     View* view;
-    SubghzSpectrumAnalyzerWorker* worker;
+    SubGhzSpectrumAnalyzerWorker* worker;
+    SubghzSpectrumAnalyzerCallback callback;
     void* context;
 };
 
 typedef struct {
     uint32_t frequency;
     float rssi;
+    FrequencyRSSI rssi_buf[DOTS_COUNT];
+
 } SubghzSpectrumAnalyzerModel;
 
-//void subghz_frequency_analyzer_set_callback(
-//    SubghzFrequencyAnalyzer* subghz_frequency_analyzer,
-//    SubghzFrequencyAnalyzerCallback callback,
-//    void* context) {
-//    furi_assert(subghz_frequency_analyzer);
-//    furi_assert(callback);
-//    subghz_frequency_analyzer->callback = callback;
-//    subghz_frequency_analyzer->context = context;
-//}
+void subghz_spectrum_analyzer_set_callback(
+    SubghzSpectrumAnalyzer* subghz_spectrum_analyzer,
+    SubghzSpectrumAnalyzerCallback callback,
+    void* context) {
+    furi_assert(subghz_spectrum_analyzer);
+    furi_assert(callback);
+    subghz_spectrum_analyzer->callback = callback;
+    subghz_spectrum_analyzer->context = context;
+}
 
 void subghz_spectrum_analyzer_draw(Canvas* canvas, SubghzSpectrumAnalyzerModel* model) {
+
+    canvas_clear(canvas);
+
+    uint32_t start_x = 0;
+    for (uint32_t i = 0; i < DOTS_COUNT; ++i){
+
+        canvas_draw_line(canvas, start_x, 0,
+            start_x, abs(model->rssi_buf[i].rssi));
+
+        start_x += 2;
+    }
 
 }
 
 bool subghz_spectrum_analyzer_input(InputEvent* event, void* context) {
     furi_assert(context);
 
+    SubghzSpectrumAnalyzer* instance = context;
+
+    furi_assert(context);
+    if(event->key == InputKeyOk) {
+        with_view_model(
+            instance->view, (SubghzSpectrumAnalyzerModel * model) {
+                model->frequency = 866000000;
+                return true;
+            });
+        return true;
+    }
+    if(event->key == InputKeyBack) {
+        return false;
+    }
 
     return true;
+}
+
+
+void subghz_spectrum_analyzer_pair_callback(
+		void* context,
+		uint8_t dot_num,
+		uint32_t frequency,
+		float rssi,
+		bool redraw
+)
+{
+	SubghzSpectrumAnalyzer* instance = context;
+    with_view_model(
+        instance->view, (SubghzSpectrumAnalyzerModel * model) {
+            model->rssi_buf[dot_num].rssi = rssi;
+            model->rssi_buf[dot_num].frequency = frequency;
+            return redraw;
+        });
 }
 
 void subghz_spectrum_analyzer_enter(void* context) {
@@ -49,7 +95,11 @@ void subghz_spectrum_analyzer_enter(void* context) {
 
     //Start worker
     instance->worker = subghz_spectrum_analyzer_worker_alloc();
-
+    subghz_spectrum_analyzer_worker_set_params(instance->worker, 433000000, 100000);
+    subghz_spectrum_analyzer_worker_set_pair_callback(
+            instance->worker,
+            (SubGhzSpectrumAnalyzerWorkerPairCallback)subghz_spectrum_analyzer_pair_callback,
+            instance);
     subghz_spectrum_analyzer_worker_start(instance->worker);
 
     with_view_model(
@@ -71,6 +121,7 @@ void subghz_spectrum_analyzer_exit(void* context) {
 
     with_view_model(
         instance->view, (SubghzSpectrumAnalyzerModel * model) {
+    		model->rssi = 0;
             return true;
         });
 }
