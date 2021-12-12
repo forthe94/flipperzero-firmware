@@ -9,9 +9,6 @@
 #include <furi.h>
 #include <cc1101.h>
 
-// TODO: dynamically allocated
-uint8_t calibration_values[3][DOTS_COUNT];
-float spect_buf[DOTS_COUNT];
 
 struct SubGhzSpectrumAnalyzerWorker {
     FuriThread* thread;
@@ -20,7 +17,9 @@ struct SubGhzSpectrumAnalyzerWorker {
     FrequencyRSSI rssi_buf[DOTS_COUNT];
     uint32_t freq_start;
     uint32_t freq_step;
+    uint8_t calibration_values[3][DOTS_COUNT];
 
+    bool recalibrate;
     SubGhzSpectrumAnalyzerWorkerPairCallback pair_callback;
     void* context;
 };
@@ -37,67 +36,79 @@ static uint8_t get_bandwidth(uint32_t freq_step)
 	return bw;
 
 }
-static int32_t subghz_spectrum_analyzer_worker_thread(void* context) {
-	SubGhzSpectrumAnalyzerWorker* instance = context;
 
-    uint32_t freq_step = instance->freq_step;
-    // Start CC1011
-    furi_hal_subghz_reset();
-    furi_hal_subghz_load_preset(FuriHalSubGhzPresetOok650Async);
-    furi_hal_spi_acquire(&furi_hal_spi_bus_handle_subghz);
-    uint8_t bw = get_bandwidth(freq_step);
-    cc1101_write_reg(&furi_hal_spi_bus_handle_subghz, CC1101_MDMCFG4,  0x7 | (bw << 4));
-    furi_hal_spi_release(&furi_hal_spi_bus_handle_subghz);
-
+static void recalibrate(SubGhzSpectrumAnalyzerWorker* instance)
+{
+	uint32_t freq_step = instance->freq_step;
+	uint32_t freq_start = instance->freq_start;
     // Calibrate and store calibration values for all
-    // working frequences 
+    // working frequences
     for (uint8_t i=0; i<DOTS_COUNT; i++) {
 
-        furi_hal_subghz_set_frequency(instance->freq_start + freq_step * i);
+        furi_hal_subghz_set_frequency(freq_start + freq_step * i);
         furi_hal_spi_acquire(&furi_hal_spi_bus_handle_subghz);
         cc1101_read_cal_values(&furi_hal_spi_bus_handle_subghz,
-                            &calibration_values[0][i],
-                            &calibration_values[1][i],
-                            &calibration_values[2][i]);
+                            &instance->calibration_values[0][i],
+                            &instance->calibration_values[1][i],
+                            &instance->calibration_values[2][i]);
         furi_hal_spi_release(&furi_hal_spi_bus_handle_subghz);
 
         // fill initial values
 
-
-        instance->rssi_buf[i].frequency = instance->freq_start + freq_step * i;
+        instance->rssi_buf[i].frequency = freq_start + freq_step * i;
         instance->rssi_buf[i].rssi = -100;
     }
-    
+	instance->recalibrate = false;
+
+}
+static int32_t subghz_spectrum_analyzer_worker_thread(void* context) {
+	SubGhzSpectrumAnalyzerWorker* instance = context;
+
     while(instance->worker_running) {
         osDelay(10);
-
+        uint32_t freq_step = instance->freq_step;
+        uint32_t freq_start = instance->freq_start;
+        if (instance->recalibrate)
+        {
+        	// Start CC1011
+			furi_hal_subghz_reset();
+			furi_hal_subghz_load_preset(FuriHalSubGhzPresetOok650Async);
+        	recalibrate(instance);
+        	furi_hal_spi_acquire(&furi_hal_spi_bus_handle_subghz);
+			uint8_t bw = get_bandwidth(freq_step);
+			cc1101_write_reg(&furi_hal_spi_bus_handle_subghz, CC1101_MDMCFG4,  0x7 | (bw << 4));
+			furi_hal_spi_release(&furi_hal_spi_bus_handle_subghz);
+        }
         for (uint8_t i=0; i<DOTS_COUNT; i++) {
             // Fast frequency hop (chapter 28.2 of CC1101 datasheet)
             furi_hal_subghz_idle();
 
-            furi_hal_subghz_set_frequency_and_path_fast(instance->freq_start + freq_step * i);
+            furi_hal_subghz_set_frequency_and_path_fast(freq_start + freq_step * i);
             furi_hal_spi_acquire(&furi_hal_spi_bus_handle_subghz);
             cc1101_write_cal_values(&furi_hal_spi_bus_handle_subghz,
-                                    calibration_values[0][i],
-                                    calibration_values[1][i],
-                                    calibration_values[2][i]);
+                                    instance->calibration_values[0][i],
+                                    instance->calibration_values[1][i],
+                                    instance->calibration_values[2][i]);
             furi_hal_spi_release(&furi_hal_spi_bus_handle_subghz);
             furi_hal_subghz_rx();
             osDelay(3);
 
             // Read RSSI for current channnel
-            spect_buf[i] = furi_hal_subghz_get_rssi();
+            float rssi = furi_hal_subghz_get_rssi();
 
             // Processing out buffer
 
-            if (spect_buf[i] > instance->rssi_buf[i].rssi) {
-                instance->rssi_buf[i].rssi = spect_buf[i];
+            if (rssi > instance->rssi_buf[i].rssi) {
+                instance->rssi_buf[i].rssi = rssi;
             }
             else {
 
                 instance->rssi_buf[i].rssi -= 1.0f;
             }
+            instance->pair_callback(instance->context, i, freq_start + freq_step * i, instance->rssi_buf[i].rssi, false);
         }
+        instance->pair_callback(instance->context, 0, freq_start, instance->rssi_buf[0].rssi, true);
+
     }
 
     //Stop CC1101
@@ -109,7 +120,7 @@ static int32_t subghz_spectrum_analyzer_worker_thread(void* context) {
 
 SubGhzSpectrumAnalyzerWorker* subghz_spectrum_analyzer_worker_alloc() {
 	SubGhzSpectrumAnalyzerWorker* instance = furi_alloc(sizeof(SubGhzSpectrumAnalyzerWorker));
-
+	instance->recalibrate = true;
     instance->thread = furi_thread_alloc();
     furi_thread_set_name(instance->thread, "SubghzSpectrumAnalyzerWorker");
     furi_thread_set_stack_size(instance->thread, 2048);
@@ -166,4 +177,5 @@ void subghz_spectrum_analyzer_worker_set_params(SubGhzSpectrumAnalyzerWorker* in
 {
 	instance->freq_start = freq_start;
 	instance->freq_step = freq_step;
+	instance->recalibrate = true;
 }

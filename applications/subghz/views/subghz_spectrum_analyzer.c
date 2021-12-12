@@ -8,6 +8,7 @@
 #include <notification/notification-messages.h>
 #include <lib/subghz/protocols/subghz_protocol_princeton.h>
 #include "../helpers/subghz_spectrum_analyzer_worker.h"
+#include <gui/gui_i.h>
 
 #include <assets_icons.h>
 
@@ -20,6 +21,8 @@ struct SubghzSpectrumAnalyzer {
 
 typedef struct {
     uint32_t frequency;
+    uint32_t frequency_end;
+    uint32_t freq_step;
     float rssi;
     FrequencyRSSI rssi_buf[DOTS_COUNT];
 
@@ -35,18 +38,51 @@ void subghz_spectrum_analyzer_set_callback(
     subghz_spectrum_analyzer->context = context;
 }
 
+static void set_model_params(SubghzSpectrumAnalyzer* instance, uint32_t freq, uint32_t freq_step)
+{
+	uint32_t freq_end = freq + freq_step * DOTS_COUNT;
+
+	if (furi_hal_subghz_is_frequency_valid(freq) & furi_hal_subghz_is_frequency_valid(freq_end))
+	{
+		with_view_model(
+			instance->view, (SubghzSpectrumAnalyzerModel * model) {
+				model->frequency = freq;
+				model->freq_step = freq_step;
+				model->frequency_end = freq_end;
+				return false;
+			});
+		subghz_spectrum_analyzer_worker_set_params(instance->worker, freq, freq_step);
+
+	}
+}
 void subghz_spectrum_analyzer_draw(Canvas* canvas, SubghzSpectrumAnalyzerModel* model) {
+    char buffer[64];
 
     canvas_clear(canvas);
 
     uint32_t start_x = 0;
     for (uint32_t i = 0; i < DOTS_COUNT; ++i){
-
-        canvas_draw_line(canvas, start_x, 0,
-            start_x, abs(model->rssi_buf[i].rssi));
+    	float val = (model->rssi_buf[i].rssi < -100) ? 0 : model->rssi_buf[i].rssi + 100;
+        canvas_draw_line(canvas, start_x, GUI_DISPLAY_HEIGHT-10,
+            start_x, GUI_DISPLAY_HEIGHT - val - 10);
 
         start_x += 2;
     }
+    canvas_set_font(canvas, FontPrimary);
+	snprintf(
+		buffer,
+		sizeof(buffer),
+		"%03ld.%03ld",
+		model->frequency / 1000000 % 1000,
+		model->frequency / 1000 % 1000);
+	canvas_draw_str(canvas, 0, GUI_DISPLAY_HEIGHT, buffer);
+	snprintf(
+		buffer,
+		sizeof(buffer),
+		"%03ld.%03ld",
+		(model->frequency_end) / 1000000 % 1000,
+		(model->frequency_end) / 1000 % 1000);
+	canvas_draw_str(canvas, 61, GUI_DISPLAY_HEIGHT, buffer);
 
 }
 
@@ -54,20 +90,34 @@ bool subghz_spectrum_analyzer_input(InputEvent* event, void* context) {
     furi_assert(context);
 
     SubghzSpectrumAnalyzer* instance = context;
+	SubghzSpectrumAnalyzerModel* model = view_get_model(instance->view);
 
     furi_assert(context);
     if(event->key == InputKeyOk) {
-        with_view_model(
-            instance->view, (SubghzSpectrumAnalyzerModel * model) {
-                model->frequency = 866000000;
-                return true;
-            });
+
         return true;
     }
     if(event->key == InputKeyBack) {
         return false;
     }
-
+    else if ((event->key == InputKeyRight) & (event->type == InputTypePress)) {
+    	set_model_params(instance, model->frequency + model->freq_step, model->freq_step);
+    	return true;
+    }
+    else if ((event->key == InputKeyLeft) & (event->type == InputTypePress)) {
+    	set_model_params(instance, model->frequency - model->freq_step, model->freq_step);
+    	return true;
+    }
+    else if ((event->key == InputKeyUp) & (event->type == InputTypePress)) {
+    	if (model->freq_step <= 100000)
+    		return true;
+    	set_model_params(instance, model->frequency, model->freq_step - 100000);
+    	return true;
+    }
+    else if ((event->key == InputKeyDown) & (event->type == InputTypePress)) {
+    	set_model_params(instance, model->frequency, model->freq_step + 100000);
+    	return true;
+    }
     return true;
 }
 
@@ -132,7 +182,7 @@ SubghzSpectrumAnalyzer* subghz_spectrum_analyzer_alloc() {
     // View allocation and configuration
     instance->view = view_alloc();
     view_allocate_model(
-        instance->view, ViewModelTypeLocking, sizeof(SubghzSpectrumAnalyzerModel));
+        instance->view, ViewModelTypeLockFree, sizeof(SubghzSpectrumAnalyzerModel));
     view_set_context(instance->view, instance);
     view_set_draw_callback(instance->view, (ViewDrawCallback)subghz_spectrum_analyzer_draw);
     view_set_input_callback(instance->view, subghz_spectrum_analyzer_input);
@@ -141,6 +191,13 @@ SubghzSpectrumAnalyzer* subghz_spectrum_analyzer_alloc() {
 
     with_view_model(
         instance->view, (SubghzSpectrumAnalyzerModel * model) {
+    		for (uint8_t i = 0; i<DOTS_COUNT;i++)
+    		{
+                model->rssi_buf[i].rssi = -100;
+    		}
+            model->frequency = 866000000;
+            model->freq_step = 100000;
+            model->frequency_end = 866000000 + 100000 * 50;
             return true;
         });
 
