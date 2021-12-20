@@ -5,13 +5,13 @@
 #include <furi.h>
 #include <furi-hal.h>
 #include <input/input.h>
-#include <notification/notification-messages.h>
-#include <lib/subghz/protocols/subghz_protocol_princeton.h>
 #include "../helpers/subghz_spectrum_analyzer_worker.h"
 #include <gui/gui_i.h>
 
 #include <assets_icons.h>
 
+uint32_t base_freqs[] = {315000000, 433000000, 866000000};
+uint8_t base_freq_count = sizeof(base_freqs)/sizeof(typeof(base_freqs[0]));
 struct SubghzSpectrumAnalyzer {
     View* view;
     SubGhzSpectrumAnalyzerWorker* worker;
@@ -23,6 +23,7 @@ typedef struct {
     uint32_t frequency;
     uint32_t frequency_end;
     uint32_t freq_step;
+    uint32_t freq_range;
     float rssi;
     FrequencyRSSI rssi_buf[DOTS_COUNT];
 
@@ -79,10 +80,22 @@ void subghz_spectrum_analyzer_draw(Canvas* canvas, SubghzSpectrumAnalyzerModel* 
 	snprintf(
 		buffer,
 		sizeof(buffer),
+		"MH");
+	canvas_draw_str(canvas, 41, GUI_DISPLAY_HEIGHT, buffer);
+	snprintf(
+		buffer,
+		sizeof(buffer),
 		"%03ld.%03ld",
 		(model->frequency_end) / 1000000 % 1000,
 		(model->frequency_end) / 1000 % 1000);
 	canvas_draw_str(canvas, 61, GUI_DISPLAY_HEIGHT, buffer);
+	canvas_draw_str(canvas, 100, 15, "dF KHZ");
+	snprintf(
+		buffer,
+		sizeof(buffer),
+		"%04ld",
+		(model->freq_step) / 1000);
+	canvas_draw_str(canvas, 100, 30, buffer);
 
 }
 
@@ -93,10 +106,7 @@ bool subghz_spectrum_analyzer_input(InputEvent* event, void* context) {
 	SubghzSpectrumAnalyzerModel* model = view_get_model(instance->view);
 
     furi_assert(context);
-    if(event->key == InputKeyOk) {
 
-        return true;
-    }
     if(event->key == InputKeyBack) {
         return false;
     }
@@ -111,11 +121,19 @@ bool subghz_spectrum_analyzer_input(InputEvent* event, void* context) {
     else if ((event->key == InputKeyUp) & (event->type == InputTypePress)) {
     	if (model->freq_step <= 100000)
     		return true;
-    	set_model_params(instance, model->frequency, model->freq_step - 100000);
+    	set_model_params(instance, model->frequency + 1250000, model->freq_step-50000);
     	return true;
     }
     else if ((event->key == InputKeyDown) & (event->type == InputTypePress)) {
-    	set_model_params(instance, model->frequency, model->freq_step + 100000);
+    	set_model_params(instance, model->frequency - 1250000, model->freq_step+50000);
+    	return true;
+    }
+    else if ((event->key == InputKeyOk) & (event->type == InputTypePress)) {
+    	model->freq_range++;
+    	if (model->freq_range == base_freq_count)
+    		model->freq_range = 0;
+    	set_model_params(instance, base_freqs[model->freq_range], 100000);
+//    	set_model_params(instance, 400000000, 50000);
     	return true;
     }
     return true;
@@ -198,6 +216,7 @@ SubghzSpectrumAnalyzer* subghz_spectrum_analyzer_alloc() {
             model->frequency = 866000000;
             model->freq_step = 100000;
             model->frequency_end = 866000000 + 100000 * 50;
+            model->freq_range = 0;
             return true;
         });
 
