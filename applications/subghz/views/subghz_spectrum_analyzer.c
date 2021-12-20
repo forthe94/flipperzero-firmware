@@ -133,7 +133,6 @@ bool subghz_spectrum_analyzer_input(InputEvent* event, void* context) {
     	if (model->freq_range == base_freq_count)
     		model->freq_range = 0;
     	set_model_params(instance, base_freqs[model->freq_range], 100000);
-//    	set_model_params(instance, 400000000, 50000);
     	return true;
     }
     return true;
@@ -213,9 +212,9 @@ SubghzSpectrumAnalyzer* subghz_spectrum_analyzer_alloc() {
     		{
                 model->rssi_buf[i].rssi = -100;
     		}
-            model->frequency = 866000000;
+            model->frequency = base_freqs[0];
             model->freq_step = 100000;
-            model->frequency_end = 866000000 + 100000 * 50;
+            model->frequency_end = base_freqs[0] + 100000 * DOTS_COUNT;
             model->freq_range = 0;
             return true;
         });
